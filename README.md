@@ -29,6 +29,12 @@ font from Adobe, and _[Font Awesome](http://fontawesome.io/)_ icons to produce a
 sudo apt-get update && sudo apt-get install -y texlive-full
 ```
 
+### Install TeX Live on Windows (via Chocolatey)
+
+```powershell
+choco install miktex strawberryperl -y
+```
+
 ### Install TeX Live on macOS (via Homebrew)
 
 ```bash
@@ -39,25 +45,10 @@ brew install --cask mactex
 
 ## Building Locally
 
-Compile the CV with **XeLaTeX** (recommended — supports custom fonts):
+Compile the CV with **XeLaTeX**:
 
 ```bash
 xelatex cv.tex
-```
-
-For a full build including bibliography:
-
-```bash
-xelatex cv.tex
-bibtex cv
-xelatex cv.tex
-xelatex cv.tex
-```
-
-Or use **latexmk** for automatic dependency tracking:
-
-```bash
-latexmk -xelatex cv.tex
 ```
 
 The compiled PDF will be written to `cv.pdf` in the same directory.
