@@ -9,26 +9,6 @@ created by Alessandro Plasmati and refined by Christophe Roger.
 The template uses the _XeLaTeX_ engine, _[Source Sans Pro](https://github.com/adobe-fonts/source-sans-pro)_
 font from Adobe, and _[Font Awesome](http://fontawesome.io/)_ icons to produce a clean, modern PDF.
 
----
-
-## Recommended Directory Structure
-
-```
-my-cv/
-├── .github/
-│   └── workflows/
-│       └── build-cv.yml        # CI workflow — compiles PDF on every push
-├── fonts/                      # Custom font files (.otf / .ttf)
-│   ├── FontAwesome.otf
-│   └── SourceSansPro-*.otf
-├── img/                        # Photos or logo images used in the CV
-│   └── profile.jpg
-├── awesome-source-cv.cls       # LaTeX class file (layout & styling)
-├── cv.tex                      # Main CV source file
-├── .gitignore
-└── README.md
-```
-
 > **Tip:** Keep compiled `.pdf` files out of version control — the CI workflow uploads the
 > PDF as a downloadable workflow artifact after every successful build.
 
