@@ -57,7 +57,7 @@
 % Dependences
 %A Few Useful Packages
 \RequirePackage[english,french]{babel}
-\RequirePackage[utf8]{luainputenc}
+%\RequirePackage[utf8]{luainputenc}
 \RequirePackage{fontspec} 					                 % for loading fonts
 \RequirePackage{url,parskip} 	    % other packages for formatting
 \RequirePackage[usenames,dvipsnames]{xcolor}
@@ -75,7 +75,7 @@
 \RequirePackage{fancyhdr}
 
 
-\DeclareUnicodeCharacter{00E9}{\'{e}}
+%\DeclareUnicodeCharacter{00E9}{\'{e}}
 % Define default accent colors
 \definecolor{basecolor}{HTML}{000066}       %BLUE
 
