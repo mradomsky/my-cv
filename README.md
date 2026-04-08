@@ -9,8 +9,9 @@ created by Alessandro Plasmati and refined by Christophe Roger.
 The template uses the _XeLaTeX_ engine, _[Source Sans Pro](https://github.com/adobe-fonts/source-sans-pro)_
 font from Adobe, and _[Font Awesome](http://fontawesome.io/)_ icons to produce a clean, modern PDF.
 
-> **Tip:** Keep compiled `.pdf` files out of version control — the CI workflow uploads the
-> PDF as a downloadable workflow artifact after every successful build.
+> **Tip:** Keep compiled `.pdf` files out of version control. The CI workflow compiles the
+> PDF with real contact info (injected via GitHub secrets) and uploads it to a private
+> AWS S3 URL. See [Automated Builds](#automated-builds-github-actions) for details.
 
 ---
 
@@ -45,13 +46,21 @@ brew install --cask mactex
 
 ## Building Locally
 
-Compile the CV with **XeLaTeX**:
+1. Copy the example personal info file and fill in your real values:
 
-```bash
-xelatex cv.tex
-```
+   ```bash
+   cp personal_info.example.tex personal_info.tex
+   # edit personal_info.tex — it is gitignored and will never be committed
+   ```
+
+2. Compile the CV with **XeLaTeX**:
+
+   ```bash
+   xelatex cv.tex
+   ```
 
 The compiled PDF will be written to `cv.pdf` in the same directory.
+If `personal_info.tex` is absent the CV compiles cleanly but phone and email will be blank.
 
 ---
 
@@ -103,11 +112,32 @@ The compiled PDF will be written to `cv.pdf` in the same directory.
 Every push to the `main` branch triggers `.github/workflows/build-cv.yml`, which:
 
 1. Checks out the repository.
-2. Compiles `cv.tex` using **XeLaTeX** via the `xu-cheng/latex-action` action.
-3. Uploads the resulting `cv.pdf` as a downloadable workflow artifact.
+2. Generates `personal_info.tex` on-the-fly from repository secrets (`CV_PHONE`, `CV_EMAIL`).
+3. Compiles `cv.tex` using **XeLaTeX** via the `xu-cheng/latex-action` action.
+4. Uploads `cv.pdf` to an **AWS S3** bucket at a secret, unguessable path.
 
-Download the latest compiled PDF from the **Actions** tab → most recent workflow run →
-**Artifacts** section.
+### Required GitHub Secrets
+
+| Secret | Description |
+|---|---|
+| `CV_PHONE` | Your phone number |
+| `CV_EMAIL` | Your email address |
+| `AWS_ACCESS_KEY_ID` | AWS IAM access key ID |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret access key |
+| `S3_BUCKET` | S3 bucket name (must have public read access on the CV object path) |
+| `S3_REGION` | AWS region (e.g. `us-east-1`) |
+| `CV_PATH_SECRET` | A random UUID; makes the object path unguessable |
+
+### Setup
+
+1. Ensure your S3 bucket allows public **read** on the specific key path `<CV_PATH_SECRET>/cv.pdf` (recommend a bucket policy limiting `GetObject` on that prefix).
+2. Generate a UUID (e.g. `python3 -c "import uuid; print(uuid.uuid4())"`) for `CV_PATH_SECRET`.
+3. Add all five secrets above to the repository (**Settings → Secrets and variables → Actions**).
+
+The resulting CV URL is stable on every deploy:
+```
+https://<bucket>.s3.<region>.amazonaws.com/<CV_PATH_SECRET>/cv.pdf
+```
 
 ---
 

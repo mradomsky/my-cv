@@ -16,15 +16,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Generate personal_info.tex from secrets
+        env:
+          CV_PHONE: ${{ secrets.CV_PHONE }}
+          CV_EMAIL: ${{ secrets.CV_EMAIL }}
+        run: |
+          printf '\\def\\myphone{%s}\n\\def\\myemail{%s}\n' "$CV_PHONE" "$CV_EMAIL" > personal_info.tex
+
       - name: Compile cv.tex with XeLaTeX
         uses: xu-cheng/latex-action@v3
         with:
           root_file: cv.tex
           latexmk_use_xelatex: true
 
-      - name: Upload compiled PDF
-        uses: actions/upload-artifact@v4
-        with:
-          name: cv-pdf
-          path: cv.pdf
-          if-no-files-found: error
+      - name: Upload CV to AWS S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          CV_PATH_SECRET: ${{ secrets.CV_PATH_SECRET }}
+        run: |
+          aws s3 cp cv.pdf \
+            "s3://${S3_BUCKET}/${CV_PATH_SECRET}/cv.pdf" \
+            --region "$S3_REGION"

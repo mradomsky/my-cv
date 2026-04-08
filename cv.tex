@@ -14,11 +14,14 @@
 \name{Maksym}{Radomsky}
 \tagline{Fullstack Developer}
 \photo{2.5cm}{images/mradomsky}
+% Load personal contact info from a gitignored local file.
+% CI generates this file from secrets. Fall back to empty strings if absent.
+\IfFileExists{personal_info.tex}{\input{personal_info.tex}}{\def\myphone{}\def\myemail{}}
 \socialinfo{
 	\linkedin{maksym-radomsky}\\
 	\github{mradomsky}\\
-	\smartphone{REDACTED_PHONE}\\
-	\email{REDACTED_EMAIL}\\
+	\smartphone{\myphone}\\
+	\email{\myemail}\\
 	\address{Köln, Deutschland}\\
 }
 
