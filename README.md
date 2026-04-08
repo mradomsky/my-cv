@@ -118,3 +118,8 @@ The LaTeX class file `awesome-source-cv.cls` is published under the
 
 All content files are published under the
 [CC BY-SA 4.0 License](https://creativecommons.org/licenses/by-sa/4.0/legalcode).
+
+---
+
+## Interesting Positions:
+https://fulfillmenttools.dvinci-hr.com/de/jobs/14/senior-solution-engineer-mwd
