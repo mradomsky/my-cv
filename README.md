@@ -2,9 +2,8 @@
 
 ## About
 
-This repository contains the LaTeX source for my personal CV/résumé. It is based on the
-**[Awesome Source LaTeX CV](https://github.com/darwiin/awesome-neue-latex-cv)** template originally
-created by Alessandro Plasmati and refined by Christophe Roger.
+This repository contains the LaTeX source for my personal CV/résumé. It is based on a
+third-party CV template and customized for my own use.
 
 The template uses the _XeLaTeX_ engine, _[Source Sans Pro](https://github.com/adobe-fonts/source-sans-pro)_
 font from Adobe, and _[Font Awesome](http://fontawesome.io/)_ icons to produce a clean, modern PDF.
@@ -143,11 +142,15 @@ https://<bucket>.s3.<region>.amazonaws.com/<CV_PATH_SECRET>/cv.pdf
 
 ## License
 
-The LaTeX class file `awesome-source-cv.cls` is published under the
+The LaTeX class file `yaac-another-awesome-cv.cls` is published under the
 [LPPL Version 1.3c](https://www.latex-project.org/lppl.txt).
 
 All content files are published under the
 [CC BY-SA 4.0 License](https://creativecommons.org/licenses/by-sa/4.0/legalcode).
+
+Template attribution required by the upstream licenses is kept here rather than repeated
+throughout the source files. The class file comes from the YAAC / Awesome Source CV template
+lineage, including work by Alessandro Plasmati and Christophe Roger.
 
 ---
 
