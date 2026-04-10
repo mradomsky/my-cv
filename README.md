@@ -140,6 +140,111 @@ https://<bucket>.s3.<region>.amazonaws.com/<CV_PATH_SECRET>/cv.pdf
 
 ---
 
+## AI-Powered CV Tailoring (Multi-Agent Pipeline)
+
+The `.github/workflows/tailor-cv.yml` workflow automates tailoring the CV and
+generating a matching cover letter for a specific job application using OpenAI.
+
+### How It Works
+
+```
+workflow_dispatch
+       │
+       ▼
+┌─────────────────────┐
+│  Agent 1            │  agents/job_analyzer.py
+│  Job Analyzer       │  Fetches the posting, extracts skills /
+│                     │  responsibilities / keywords via GPT-4o
+└────────┬────────────┘
+         │  job_analysis.json
+    ┌────┴──────────────────────────┐
+    ▼                               ▼
+┌──────────────────┐   ┌───────────────────────────┐
+│  Agent 2         │   │  Agent 3                  │
+│  CV Tailor       │   │  Cover Letter Generator   │
+│                  │   │                           │
+│  Rewrites        │   │  Generates a complete     │
+│  section_        │   │  XeLaTeX cover letter     │
+│  headline.tex    │   │  (cover_letter.tex)       │
+└────────┬─────────┘   └──────────┬────────────────┘
+         │                        │
+         ▼                        ▼
+   XeLaTeX compile          XeLaTeX compile
+   (tailored cv.tex)        (cover_letter.tex)
+         │                        │
+         └────────────┬───────────┘
+                      ▼
+              Upload both PDFs to S3
+              (job-specific path)
+```
+
+### Trigger (workflow_dispatch)
+
+Navigate to **Actions → Tailor CV for Job Application → Run workflow** and fill
+in the following inputs:
+
+| Input | Required | Description |
+|---|---|---|
+| `job_url` | optional | URL of the job posting to scrape |
+| `job_text` | optional | Raw job description (used when URL is unavailable) |
+| `job_title` | **yes** | Job title (e.g. `Senior Solution Engineer`) |
+| `company_name` | **yes** | Company name (e.g. `Acme Corp`) |
+| `language` | optional | Language for generated documents: `de` / `en` / `fr` (default: `de`) |
+
+> At least one of `job_url` or `job_text` must be provided.
+
+### Additional Required Secret
+
+| Secret | Description |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI API key (GPT-4o access required) |
+
+All other secrets are the same as for `build-cv.yml` (see table above).
+
+### Output
+
+Both PDFs are uploaded to S3 under:
+```
+s3://<bucket>/<CV_PATH_SECRET>/jobs/<company-job-slug>/cv.pdf
+s3://<bucket>/<CV_PATH_SECRET>/jobs/<company-job-slug>/cover_letter.pdf
+```
+A workflow summary with clickable S3 links is written at the end of the run.
+
+### Running the Agents Locally
+
+```bash
+# 1. Install dependencies
+pip install -r agents/requirements.txt
+
+# 2. Set your API key
+export OPENAI_API_KEY=sk-...
+
+# 3. Analyse a job posting
+python agents/job_analyzer.py \
+  --url "https://example.com/jobs/123" \
+  --output /tmp/job_analysis.json
+
+# 4. Tailor the CV headline (overwrites section_headline.tex in-place)
+python agents/cv_tailor.py \
+  --analysis /tmp/job_analysis.json \
+  --headline section_headline.tex \
+  --language de
+
+# 5. Generate the cover letter
+python agents/cover_letter_generator.py \
+  --analysis /tmp/job_analysis.json \
+  --language de \
+  --job-title "Senior Solution Engineer" \
+  --company "Acme Corp" \
+  --output cover_letter.tex
+
+# 6. Compile
+xelatex cv.tex
+xelatex cover_letter.tex
+```
+
+---
+
 ## License
 
 The LaTeX class file `yaac-another-awesome-cv.cls` is published under the
