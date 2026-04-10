@@ -1,0 +1,166 @@
+name: Tailor CV for Job Application
+
+# Triggered manually via the GitHub UI or API.
+# Provide the job posting URL (or paste the description as text) plus a few
+# metadata fields; the three AI agents will tailor the CV headline and generate
+# a matching cover letter, compile both with XeLaTeX, and upload the PDFs to S3.
+on:
+  workflow_dispatch:
+    inputs:
+      job_url:
+        description: 'URL of the job posting (optional if job_text is provided)'
+        required: false
+        default: ''
+      job_text:
+        description: 'Raw job description text (fallback when job_url is absent or inaccessible)'
+        required: false
+        default: ''
+      job_title:
+        description: 'Job title (e.g. "Senior Solution Engineer")'
+        required: true
+      company_name:
+        description: 'Company name (e.g. "Acme Corp")'
+        required: true
+      language:
+        description: 'Language for generated documents'
+        required: false
+        default: 'de'
+        type: choice
+        options:
+          - de
+          - en
+          - fr
+
+jobs:
+  tailor:
+    name: Tailor CV & Generate Cover Letter
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Source
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # 2. Inject personal contact info (same as build-cv.yml)
+      # -----------------------------------------------------------------------
+      - name: Generate personal_info.tex from secrets
+        env:
+          CV_PHONE: ${{ secrets.CV_PHONE }}
+          CV_EMAIL: ${{ secrets.CV_EMAIL }}
+        run: |
+          printf '\\def\\myphone{%s}\n\\def\\myemail{%s}\n' "$CV_PHONE" "$CV_EMAIL" > personal_info.tex
+
+      # -----------------------------------------------------------------------
+      # 3. Python environment for the AI agents
+      # -----------------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: agents/requirements.txt
+
+      - name: Install agent dependencies
+        run: pip install -r agents/requirements.txt
+
+      # -----------------------------------------------------------------------
+      # 4. Agent 1 — analyse the job posting
+      # -----------------------------------------------------------------------
+      - name: Analyze job description
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python agents/job_analyzer.py \
+            --url  "${{ inputs.job_url }}" \
+            --text "${{ inputs.job_text }}" \
+            --output /tmp/job_analysis.json
+
+      # -----------------------------------------------------------------------
+      # 5. Agent 2 — tailor the CV headline section
+      # -----------------------------------------------------------------------
+      - name: Tailor CV headline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python agents/cv_tailor.py \
+            --analysis  /tmp/job_analysis.json \
+            --headline  section_headline.tex \
+            --language  "${{ inputs.language }}" \
+            --job-title "${{ inputs.job_title }}" \
+            --company   "${{ inputs.company_name }}"
+
+      # -----------------------------------------------------------------------
+      # 6. Agent 3 — generate cover letter
+      # -----------------------------------------------------------------------
+      - name: Generate cover letter
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python agents/cover_letter_generator.py \
+            --analysis  /tmp/job_analysis.json \
+            --language  "${{ inputs.language }}" \
+            --job-title "${{ inputs.job_title }}" \
+            --company   "${{ inputs.company_name }}" \
+            --output    cover_letter.tex
+
+      # -----------------------------------------------------------------------
+      # 7. Compile tailored CV
+      # -----------------------------------------------------------------------
+      - name: Compile tailored CV with XeLaTeX
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: cv.tex
+          latexmk_use_xelatex: true
+
+      - name: Rename compiled CV
+        run: mv cv.pdf cv_tailored.pdf
+
+      # -----------------------------------------------------------------------
+      # 8. Compile cover letter
+      # -----------------------------------------------------------------------
+      - name: Compile cover letter with XeLaTeX
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: cover_letter.tex
+          latexmk_use_xelatex: true
+
+      # -----------------------------------------------------------------------
+      # 9. Upload both PDFs to S3 under a job-specific path
+      # -----------------------------------------------------------------------
+      - name: Upload tailored documents to S3
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET:             ${{ secrets.S3_BUCKET }}
+          S3_REGION:             ${{ secrets.S3_REGION }}
+          CV_PATH_SECRET:        ${{ secrets.CV_PATH_SECRET }}
+        run: |
+          # Build a URL-safe slug: "<company>-<title>" → lowercase ASCII, spaces→hyphens.
+          # iconv transliterates Unicode (e.g. umlauts ä→a, ü→u) before collapsing
+          # non-alphanumeric characters, so names like "Müller GmbH" become "muller-gmbh".
+          JOB_SLUG=$(
+            printf '%s-%s' "${{ inputs.company_name }}" "${{ inputs.job_title }}" \
+            | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null \
+            | tr '[:upper:]' '[:lower:]' \
+            | tr -cs 'a-z0-9' '-' \
+            | sed 's/-$//'
+          )
+
+          S3_PREFIX="${CV_PATH_SECRET}/jobs/${JOB_SLUG}"
+          CV_URL="https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${S3_PREFIX}/cv.pdf"
+          CL_URL="https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${S3_PREFIX}/cover_letter.pdf"
+
+          aws s3 cp cv_tailored.pdf   "s3://${S3_BUCKET}/${S3_PREFIX}/cv.pdf"           --region "$S3_REGION"
+          aws s3 cp cover_letter.pdf  "s3://${S3_BUCKET}/${S3_PREFIX}/cover_letter.pdf"  --region "$S3_REGION"
+
+          echo "### 📄 Tailored documents ready"         >> "$GITHUB_STEP_SUMMARY"
+          echo ""                                        >> "$GITHUB_STEP_SUMMARY"
+          echo "| Document     | Link |"                 >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|"                               >> "$GITHUB_STEP_SUMMARY"
+          echo "| CV           | [cv.pdf](${CV_URL}) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Cover Letter | [cover_letter.pdf](${CL_URL}) |" >> "$GITHUB_STEP_SUMMARY"
